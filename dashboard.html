@@ -12,6 +12,7 @@
         <header>
             <div class="header-content">
                 <h1><i class="fas fa-clock"></i> Digital Alarm System</h1>
+                <div class="love-message" onclick="showLovePopup()">💕 I Love You Chinmayee 💕</div>
                 <div class="user-info">
                     <span id="userName">Welcome!</span>
                     <button id="logoutBtn" class="btn-logout">
@@ -74,9 +75,31 @@
                 </div>
             </div>
         </div>
+
+        <!-- Love Popup Modal -->
+        <div id="lovePopup" class="modal">
+            <div class="modal-content love-popup-content">
+                <div class="love-icon">
+                    <i class="fas fa-heart"></i>
+                </div>
+                <h3>Thank You Krishna</h3>
+                <p>💕 With love and gratitude 💕</p>
+            </div>
+        </div>
     </div>
 
     <script src="auth-check.js"></script>
     <script src="script.js"></script>
+    <script>
+        function showLovePopup() {
+            const popup = document.getElementById('lovePopup');
+            popup.classList.add('show');
+            
+            // Auto-hide after 5 seconds
+            setTimeout(() => {
+                popup.classList.remove('show');
+            }, 5000);
+        }
+    </script>
 </body>
 </html> 
