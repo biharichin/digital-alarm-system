@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Digital Alarm System - Dashboard</title>
+    <link rel="stylesheet" href="styles.css">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <div class="header-content">
+                <h1><i class="fas fa-clock"></i> Digital Alarm System</h1>
+                <div class="user-info">
+                    <span id="userName">Welcome!</span>
+                    <button id="logoutBtn" class="btn-logout">
+                        <i class="fas fa-sign-out-alt"></i> Logout
+                    </button>
+                </div>
+            </div>
+            <div class="current-time" id="currentTime"></div>
+        </header>
+
+        <main>
+            <!-- Add Alarm Form -->
+            <section class="add-alarm">
+                <h2>Add New Alarm</h2>
+                <form id="alarmForm">
+                    <div class="form-group">
+                        <label for="alarmTime">Time:</label>
+                        <input type="time" id="alarmTime" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="alarmLabel">Label (optional):</label>
+                        <input type="text" id="alarmLabel" placeholder="Wake up, Work, etc.">
+                    </div>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-plus"></i> Add Alarm
+                    </button>
+                    <button type="button" id="testSoundBtn" class="btn btn-secondary" style="margin-left: 10px;">
+                        <i class="fas fa-volume-up"></i> Test Sound
+                    </button>
+                </form>
+            </section>
+
+            <!-- Alarms List -->
+            <section class="alarms-list">
+                <h2>Your Alarms</h2>
+                <div id="alarmsList" class="alarms-container">
+                    <!-- Alarms will be dynamically added here -->
+                </div>
+            </section>
+        </main>
+
+        <!-- Alarm Notification Modal -->
+        <div id="alarmModal" class="modal">
+            <div class="modal-content">
+                <div class="alarm-header">
+                    <h2><i class="fas fa-bell"></i> Alarm!</h2>
+                    <div class="alarm-indicator">🔴</div>
+                </div>
+                <p id="alarmMessage"></p>
+                <div class="alarm-controls">
+                    <button id="snoozeBtn" class="btn btn-secondary">
+                        <i class="fas fa-clock"></i> Snooze (5 min)
+                    </button>
+                    <button id="stopBtn" class="btn btn-danger stop-btn">
+                        <i class="fas fa-stop"></i> Stop Alarm
+                    </button>
+                </div>
+                <div class="alarm-help">
+                    <p><small>Press <kbd>ESC</kbd>, <kbd>SPACE</kbd>, or <kbd>ENTER</kbd> to stop alarm</small></p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="auth-check.js"></script>
+    <script src="script.js"></script>
+</body>
+</html> 
