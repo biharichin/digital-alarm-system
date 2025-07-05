@@ -1,6 +1,9 @@
 class AuthSystem {
     constructor() {
-        this.API_BASE_URL = 'http://localhost:3001/api';
+        // API base URL - supports both localhost and network access
+this.API_BASE_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' 
+    ? 'http://localhost:3000/api' 
+    : 'http://192.168.94.218:3000/api';
         this.currentUser = JSON.parse(localStorage.getItem('currentUser')) || null;
         this.userStats = JSON.parse(localStorage.getItem('userStats')) || {};
         
