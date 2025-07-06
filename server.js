@@ -3,7 +3,7 @@ const cors = require('cors');
 const bodyParser = require('body-parser');
 const bcrypt = require('bcryptjs');
 const { v4: uuidv4 } = require('uuid');
-const database = require('./config/database');
+// const database = require('./config/database');
 const userService = require('./services/userService');
 
 const app = express();
@@ -390,7 +390,7 @@ app.use('*', (req, res) => {
 async function startServer() {
     try {
         // Try to connect to MongoDB
-        await database.connectToDatabase();
+        // await database.connectToDatabase();
         
         // Start server
         app.listen(PORT, '0.0.0.0', () => {
