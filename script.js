@@ -13,6 +13,11 @@ class AlarmSystem {
         this.gainNode = null;
         this.isPlaying = false;
         this.currentAlarm = null;
+        this.selectedAudioFile = null; // Store selected audio file
+        this.selectedProfileImage = null; // Store selected profile image
+        this.currentProfileImage = null; // Store current profile image
+        this.editingAlarm = null; // Store alarm being edited
+        this.selectedEditAudioFile = null; // Store selected audio file for edit
         
         this.init();
     }
@@ -21,24 +26,32 @@ class AlarmSystem {
         if (!this.currentUser) return [];
         
         try {
-            // Try to load from backend first
+            // Load from backend
             const response = await fetch(`${this.API_BASE_URL}/users/${this.currentUser.id}/alarms`);
             if (response.ok) {
                 const result = await response.json();
                 if (result.success) {
+                    console.log('Loaded alarms from backend:', result.alarms);
                     return result.alarms || [];
                 }
             }
         } catch (error) {
-            console.log('Backend alarm loading failed, using localStorage fallback');
+            console.error('Backend alarm loading failed:', error);
         }
         
         // Fallback to localStorage
         const userAlarms = JSON.parse(localStorage.getItem(`alarms_${this.currentUser.id}`)) || [];
+        console.log('Loaded alarms from localStorage fallback:', userAlarms);
         return userAlarms;
     }
 
     async init() {
+        // Ensure user session is loaded
+        this.refreshUserSession();
+        
+        // Debug user session for troubleshooting
+        this.debugUserSession();
+        
         this.updateCurrentTime();
         this.setupEventListeners();
         this.startClock();
@@ -47,6 +60,9 @@ class AlarmSystem {
         this.alarms = await this.loadUserAlarms();
         this.renderAlarms();
         this.checkAlarms();
+        
+        // Load profile picture
+        this.loadProfilePicture();
     }
 
     setupEventListeners() {
@@ -92,6 +108,60 @@ class AlarmSystem {
         document.getElementById('testSoundBtn').addEventListener('click', () => {
             this.testSound();
         });
+
+        // Test custom sound button
+        const testCustomSoundBtn = document.getElementById('testCustomSoundBtn');
+        if (testCustomSoundBtn) {
+            testCustomSoundBtn.addEventListener('click', () => {
+                this.testCustomSound();
+            });
+        }
+
+        // File selection for custom alarm sounds
+        const selectSoundBtn = document.getElementById('selectSoundBtn');
+        const alarmSoundFile = document.getElementById('alarmSoundFile');
+        
+        if (selectSoundBtn && alarmSoundFile) {
+            selectSoundBtn.addEventListener('click', () => {
+                alarmSoundFile.click();
+            });
+            
+            alarmSoundFile.addEventListener('change', (e) => {
+                this.handleAudioFileSelect(e);
+            });
+        }
+
+        // Edit alarm form and buttons
+        const editAlarmForm = document.getElementById('editAlarmForm');
+        const editSelectSoundBtn = document.getElementById('editSelectSoundBtn');
+        const editAlarmSoundFile = document.getElementById('editAlarmSoundFile');
+        const editTestCustomSoundBtn = document.getElementById('editTestCustomSoundBtn');
+        
+        if (editAlarmForm) {
+            editAlarmForm.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                await this.saveEditAlarm();
+            });
+        }
+        
+        if (editSelectSoundBtn && editAlarmSoundFile) {
+            editSelectSoundBtn.addEventListener('click', () => {
+                editAlarmSoundFile.click();
+            });
+            
+            editAlarmSoundFile.addEventListener('change', (e) => {
+                this.handleEditAudioFileSelect(e);
+            });
+        }
+        
+        if (editTestCustomSoundBtn) {
+            editTestCustomSoundBtn.addEventListener('click', () => {
+                this.testEditCustomSound();
+            });
+        }
+
+        // Repeat alarm options
+        this.setupRepeatOptions();
 
         // Add keyboard shortcuts for alarm control
         document.addEventListener('keydown', (e) => {
@@ -157,19 +227,48 @@ class AlarmSystem {
         
         const time = timeInput.value;
         const label = labelInput.value.trim() || 'Alarm';
+        const repeatType = this.getRepeatType();
+        const repeatDays = repeatType === 'weekly' ? this.getSelectedDays() : [];
         
         if (!time) {
             alert('Please select a time for the alarm.');
             return;
         }
 
+        // Validate weekly selection
+        if (repeatType === 'weekly' && repeatDays.length === 0) {
+            alert('Please select at least one day for weekly repeat.');
+            return;
+        }
+
         const alarm = {
-            id: Date.now(),
+            id: Date.now().toString(),
             time: time,
             label: label,
             enabled: true,
-            createdAt: new Date().toISOString()
+            status: 'pending', // pending, triggered, snoozed, completed
+            createdAt: new Date().toISOString(),
+            triggeredAt: null,
+            completedAt: null,
+            snoozeCount: 0,
+            lastSnoozeAt: null,
+            customSound: null, // Store custom sound URL
+            repeatType: repeatType,
+            repeatDays: repeatDays,
+            lastTriggeredDate: null // Track last triggered date for repeating alarms
         };
+
+        // Add custom sound if selected
+        if (this.selectedAudioFile) {
+            try {
+                const audioUrl = URL.createObjectURL(this.selectedAudioFile);
+                alarm.customSound = audioUrl;
+                alarm.customSoundName = this.selectedAudioFile.name;
+            } catch (error) {
+                console.error('Error creating audio URL:', error);
+                this.showNotification('Error processing audio file', 'error');
+            }
+        }
 
         this.alarms.push(alarm);
         await this.saveAlarms();
@@ -178,6 +277,8 @@ class AlarmSystem {
         // Reset form
         timeInput.value = '';
         labelInput.value = '';
+        this.clearFileSelection();
+        this.resetRepeatOptions();
         
         // Show success message
         this.showNotification('Alarm added successfully!', 'success');
@@ -185,6 +286,17 @@ class AlarmSystem {
 
     async deleteAlarm(id) {
         if (confirm('Are you sure you want to delete this alarm?')) {
+            const alarmToDelete = this.alarms.find(a => a.id === id);
+            
+            // Revoke object URL if custom sound exists
+            if (alarmToDelete && alarmToDelete.customSound) {
+                try {
+                    URL.revokeObjectURL(alarmToDelete.customSound);
+                } catch (error) {
+                    console.error('Error revoking object URL:', error);
+                }
+            }
+            
             this.alarms = this.alarms.filter(alarm => alarm.id !== id);
             await this.saveAlarms();
             this.renderAlarms();
@@ -271,18 +383,72 @@ class AlarmSystem {
             return;
         }
 
-        alarmsList.innerHTML = this.alarms
-            .sort((a, b) => a.time.localeCompare(b.time))
-            .map(alarm => this.createAlarmHTML(alarm))
-            .join('');
+        // Separate pending and completed alarms
+        const pendingAlarms = this.alarms.filter(alarm => alarm.status === 'pending' && alarm.enabled);
+        const completedAlarms = this.alarms.filter(alarm => alarm.status === 'completed' || !alarm.enabled);
+        const triggeredAlarms = this.alarms.filter(alarm => alarm.status === 'triggered' || alarm.status === 'snoozed');
+
+        let html = '';
+
+        // Show pending alarms first
+        if (pendingAlarms.length > 0) {
+            html += `
+                <div class="alarm-section">
+                    <h3><i class="fas fa-clock"></i> Active Alarms (${pendingAlarms.length})</h3>
+                    <div class="alarms-container">
+                        ${pendingAlarms
+                            .sort((a, b) => a.time.localeCompare(b.time))
+                            .map(alarm => this.createAlarmHTML(alarm))
+                            .join('')}
+                    </div>
+                </div>
+            `;
+        }
+
+        // Show triggered/snoozed alarms
+        if (triggeredAlarms.length > 0) {
+            html += `
+                <div class="alarm-section">
+                    <h3><i class="fas fa-bell"></i> Triggered Alarms (${triggeredAlarms.length})</h3>
+                    <div class="alarms-container">
+                        ${triggeredAlarms
+                            .sort((a, b) => new Date(b.triggeredAt || b.createdAt) - new Date(a.triggeredAt || a.createdAt))
+                            .map(alarm => this.createAlarmHTML(alarm))
+                            .join('')}
+                    </div>
+                </div>
+            `;
+        }
+
+        // Show alarm history
+        if (completedAlarms.length > 0) {
+            html += `
+                <div class="alarm-section">
+                    <h3><i class="fas fa-history"></i> Alarm History (${completedAlarms.length})</h3>
+                    <div class="alarms-container">
+                        ${completedAlarms
+                            .sort((a, b) => new Date(b.completedAt || b.createdAt) - new Date(a.completedAt || a.createdAt))
+                            .map(alarm => this.createAlarmHTML(alarm))
+                            .join('')}
+                    </div>
+                </div>
+            `;
+        }
+
+        alarmsList.innerHTML = html;
 
         // Add event listeners to new elements
         this.alarms.forEach(alarm => {
             const toggleBtn = document.querySelector(`[data-toggle="${alarm.id}"]`);
+            const editBtn = document.querySelector(`[data-edit="${alarm.id}"]`);
             const deleteBtn = document.querySelector(`[data-delete="${alarm.id}"]`);
             
             if (toggleBtn) {
                 toggleBtn.addEventListener('click', async () => await this.toggleAlarm(alarm.id));
+            }
+            
+            if (editBtn) {
+                editBtn.addEventListener('click', () => this.openEditAlarmModal(alarm.id));
             }
             
             if (deleteBtn) {
@@ -295,15 +461,47 @@ class AlarmSystem {
         const time = new Date(`2000-01-01T${alarm.time}`);
         const timeString = time.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
         
+        // Get status icon and class
+        const statusInfo = this.getStatusInfo(alarm);
+        
+        // Format creation date
+        const createdDate = new Date(alarm.createdAt);
+        const createdString = createdDate.toLocaleDateString() + ' ' + createdDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        
+        // Format completion date if exists
+        let completedString = '';
+        if (alarm.completedAt) {
+            const completedDate = new Date(alarm.completedAt);
+            completedString = completedDate.toLocaleDateString() + ' ' + completedDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        }
+        
         return `
-            <div class="alarm-item ${!alarm.enabled ? 'disabled' : ''}" data-id="${alarm.id}">
+            <div class="alarm-item ${!alarm.enabled ? 'disabled' : ''} ${alarm.status}" data-id="${alarm.id}">
                 <div class="alarm-info">
-                    <div class="alarm-time">${timeString}</div>
+                    <div class="alarm-header">
+                        <div class="alarm-time">${timeString}</div>
+                        <div class="alarm-status ${statusInfo.class}">
+                            <i class="${statusInfo.icon}"></i>
+                            ${statusInfo.text}
+                        </div>
+                    </div>
                     <div class="alarm-label">${alarm.label}</div>
+                    <div class="alarm-details">
+                        <small>Created: ${createdString}</small>
+                        ${completedString ? `<br><small>Completed: ${completedString}</small>` : ''}
+                        ${alarm.snoozeCount > 0 ? `<br><small>Snoozed ${alarm.snoozeCount} times</small>` : ''}
+                        ${alarm.customSound ? `<br><small><i class="fas fa-music"></i> Custom sound: ${alarm.customSoundName || 'Custom audio'}</small>` : ''}
+                        <br><small><i class="fas fa-redo"></i> ${this.formatRepeatInfo(alarm)}</small>
+                    </div>
                 </div>
                 <div class="alarm-controls">
-                    <div class="toggle-switch ${alarm.enabled ? 'active' : ''}" data-toggle="${alarm.id}"></div>
-                    <button class="delete-btn" data-delete="${alarm.id}">
+                    ${alarm.status === 'pending' ? `
+                        <div class="toggle-switch ${alarm.enabled ? 'active' : ''}" data-toggle="${alarm.id}"></div>
+                    ` : ''}
+                    <button class="edit-btn" data-edit="${alarm.id}" title="Edit Alarm">
+                        <i class="fas fa-edit"></i>
+                    </button>
+                    <button class="delete-btn" data-delete="${alarm.id}" title="Delete Alarm">
                         <i class="fas fa-trash"></i>
                     </button>
                 </div>
@@ -311,18 +509,81 @@ class AlarmSystem {
         `;
     }
 
+    getStatusInfo(alarm) {
+        switch (alarm.status) {
+            case 'pending':
+                return {
+                    icon: 'fas fa-clock',
+                    text: 'Pending',
+                    class: 'status-pending'
+                };
+            case 'triggered':
+                return {
+                    icon: 'fas fa-bell',
+                    text: 'Triggered',
+                    class: 'status-triggered'
+                };
+            case 'snoozed':
+                return {
+                    icon: 'fas fa-snooze',
+                    text: `Snoozed (${alarm.snoozeCount}x)`,
+                    class: 'status-snoozed'
+                };
+            case 'completed':
+                return {
+                    icon: 'fas fa-check-circle',
+                    text: 'Completed',
+                    class: 'status-completed'
+                };
+            default:
+                return {
+                    icon: 'fas fa-question',
+                    text: 'Unknown',
+                    class: 'status-unknown'
+                };
+        }
+    }
+
     checkAlarms() {
         const now = new Date();
         const currentTime = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        const currentDay = now.getDay(); // 0 = Sunday, 1 = Monday, etc.
+        const today = now.toDateString(); // For date comparison
         
         this.alarms.forEach(alarm => {
-            if (alarm.enabled && alarm.time === currentTime && !this.isPlaying) {
+            if (!alarm.enabled || this.isPlaying) return;
+            
+            // Check if alarm should trigger based on repeat type
+            let shouldTrigger = false;
+            
+            if (alarm.repeatType === 'once') {
+                // One-time alarm - check if time matches and hasn't been triggered today
+                shouldTrigger = alarm.time === currentTime && 
+                               (!alarm.lastTriggeredDate || alarm.lastTriggeredDate !== today);
+            } else if (alarm.repeatType === 'daily') {
+                // Daily alarm - check if time matches and hasn't been triggered today
+                shouldTrigger = alarm.time === currentTime && 
+                               (!alarm.lastTriggeredDate || alarm.lastTriggeredDate !== today);
+            } else if (alarm.repeatType === 'weekly') {
+                // Weekly alarm - check if current day is selected and time matches
+                shouldTrigger = alarm.repeatDays && 
+                               alarm.repeatDays.includes(currentDay) && 
+                               alarm.time === currentTime && 
+                               (!alarm.lastTriggeredDate || alarm.lastTriggeredDate !== today);
+            }
+            
+            if (shouldTrigger) {
                 this.triggerAlarm(alarm);
             }
         });
     }
 
     triggerAlarm(alarm) {
+        // Update alarm status
+        alarm.status = 'triggered';
+        alarm.triggeredAt = new Date().toISOString();
+        alarm.lastTriggeredDate = new Date().toDateString(); // Track when this alarm was last triggered
+        
         this.currentAlarm = alarm;
         this.isPlaying = true;
         
@@ -335,16 +596,50 @@ class AlarmSystem {
         
         // Request notification permission and show notification
         this.showBrowserNotification(alarm);
+        
+        // Save alarm status
+        this.saveAlarms();
+        this.renderAlarms();
     }
 
     playAlarmSound() {
+        // Check if current alarm has a custom sound
+        if (this.currentAlarm && this.currentAlarm.customSound) {
+            this.playCustomSound(this.currentAlarm.customSound);
+        } else {
+            try {
+                // Method 1: Try using Audio API with a simple beep
+                this.playSimpleBeep();
+            } catch (error) {
+                console.error('Error playing alarm sound:', error);
+                // Method 2: Fallback to Web Audio API
+                this.playWebAudioBeep();
+            }
+        }
+    }
+
+    playCustomSound(audioUrl) {
         try {
-            // Method 1: Try using Audio API with a simple beep
-            this.playSimpleBeep();
+            const audio = new Audio(audioUrl);
+            audio.volume = 0.8;
+            audio.loop = true; // Loop the custom sound
+            
+            // Store reference for stopping
+            this.currentCustomAudio = audio;
+            
+            // Play the custom sound
+            audio.play().then(() => {
+                console.log('Custom alarm sound playing');
+            }).catch(error => {
+                console.error('Error playing custom sound:', error);
+                // Fallback to default beep
+                this.playSimpleBeep();
+            });
+            
         } catch (error) {
-            console.error('Error playing alarm sound:', error);
-            // Method 2: Fallback to Web Audio API
-            this.playWebAudioBeep();
+            console.error('Error creating custom audio:', error);
+            // Fallback to default beep
+            this.playSimpleBeep();
         }
     }
 
@@ -492,7 +787,7 @@ class AlarmSystem {
             audio.volume = 0.1;
             
             // Create a simple beep using data URL
-            const beepData = 'data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmwhBSuBzvLZiTYIG2m98OScTgwOUarm7blmGgU7k9n1unEiBC13yO/eizEIHWq+8+OWT';
+            const beepData = 'data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmwhBSuBzvLZiTYIG2m98OScTgwOUarm7blmGgU7k9n1unEiBC13yO/eizEIHWq+8+OWTQAoUXrTp66hVFApGn+DyvmwhBSuBzvLZiTYIG2m98OScTgwOUarm7blmGgU7k9n1unEiBC13yO/eizEIHWq+8+OWT';
             audio.src = beepData;
             
             // Try to play it
@@ -551,8 +846,61 @@ class AlarmSystem {
         }, 3000);
     }
 
+    testCustomSound() {
+        if (!this.selectedAudioFile) {
+            this.showNotification('Please select a sound file first', 'error');
+            return;
+        }
+        
+        this.showNotification('Testing custom sound...', 'info');
+        
+        try {
+            const audioUrl = URL.createObjectURL(this.selectedAudioFile);
+            const audio = new Audio(audioUrl);
+            audio.volume = 0.8;
+            
+            // Play the custom sound
+            audio.play().then(() => {
+                console.log('Custom sound test playing');
+                
+                // Stop after 5 seconds
+                setTimeout(() => {
+                    audio.pause();
+                    audio.currentTime = 0;
+                    URL.revokeObjectURL(audioUrl);
+                    this.showNotification('Custom sound test completed!', 'success');
+                }, 5000);
+                
+            }).catch(error => {
+                console.error('Error playing custom sound test:', error);
+                URL.revokeObjectURL(audioUrl);
+                this.showNotification('Error playing custom sound', 'error');
+            });
+            
+        } catch (error) {
+            console.error('Error creating custom audio test:', error);
+            this.showNotification('Error testing custom sound', 'error');
+        }
+    }
+
     stopAlarm() {
         console.log('Stopping alarm immediately...');
+        
+        // Mark current alarm as completed or reset for repeating alarms
+        if (this.currentAlarm) {
+            if (this.currentAlarm.repeatType === 'once') {
+                // One-time alarm - mark as completed
+                this.currentAlarm.status = 'completed';
+                this.currentAlarm.completedAt = new Date().toISOString();
+            } else {
+                // Repeating alarm - reset to pending for next occurrence
+                this.currentAlarm.status = 'pending';
+                this.currentAlarm.triggeredAt = null;
+                // Keep lastTriggeredDate to prevent immediate re-triggering
+            }
+            this.saveAlarms();
+            this.renderAlarms();
+        }
         
         // Immediately set playing state to false
         this.isPlaying = false;
@@ -603,6 +951,17 @@ class AlarmSystem {
         setTimeout(() => {
             this.forceStopMobileAudio(); // Final cleanup
         }, 500);
+        
+        // Stop custom audio if playing
+        if (this.currentCustomAudio) {
+            try {
+                this.currentCustomAudio.pause();
+                this.currentCustomAudio.currentTime = 0;
+                this.currentCustomAudio = null;
+            } catch (error) {
+                console.error('Error stopping custom audio:', error);
+            }
+        }
         
         console.log('Alarm stopped successfully');
         this.showNotification('Alarm stopped!', 'success');
@@ -809,6 +1168,11 @@ class AlarmSystem {
     async snoozeAlarm() {
         if (!this.currentAlarm) return;
         
+        // Update current alarm snooze info
+        this.currentAlarm.status = 'snoozed';
+        this.currentAlarm.snoozeCount = (this.currentAlarm.snoozeCount || 0) + 1;
+        this.currentAlarm.lastSnoozeAt = new Date().toISOString();
+        
         // Stop current alarm
         this.stopAlarm();
         
@@ -818,11 +1182,22 @@ class AlarmSystem {
         const snoozeTimeString = snoozeTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
         
         const snoozeAlarm = {
-            id: Date.now(),
+            id: Date.now().toString(),
             time: snoozeTimeString,
             label: `${this.currentAlarm.label} (Snoozed)`,
             enabled: true,
-            createdAt: new Date().toISOString()
+            status: 'pending',
+            createdAt: new Date().toISOString(),
+            triggeredAt: null,
+            completedAt: null,
+            snoozeCount: 0,
+            lastSnoozeAt: null,
+            originalAlarmId: this.currentAlarm.id,
+            customSound: this.currentAlarm.customSound,
+            customSoundName: this.currentAlarm.customSoundName,
+            repeatType: 'once', // Snooze alarms are always one-time
+            repeatDays: [],
+            lastTriggeredDate: null
         };
         
         this.alarms.push(snoozeAlarm);
@@ -889,6 +1264,688 @@ class AlarmSystem {
             }, 300);
         }, 3000);
     }
+
+    handleAudioFileSelect(e) {
+        const file = e.target.files[0];
+        if (!file) return;
+        
+        // Validate file type
+        const validTypes = ['audio/mpeg', 'audio/wav', 'audio/ogg', 'audio/mp3', 'audio/mp4'];
+        if (!validTypes.includes(file.type)) {
+            this.showNotification('Please select a valid audio file (MP3, WAV, or OGG)', 'error');
+            this.clearFileSelection();
+            return;
+        }
+        
+        // Validate file size (max 10MB)
+        const maxSize = 10 * 1024 * 1024; // 10MB in bytes
+        if (file.size > maxSize) {
+            this.showNotification('File size must be less than 10MB', 'error');
+            this.clearFileSelection();
+            return;
+        }
+        
+        // Store the file and display file name
+        this.selectedAudioFile = file;
+        const fileNameDisplay = document.getElementById('selectedFileName');
+        if (fileNameDisplay) {
+            fileNameDisplay.textContent = file.name;
+            fileNameDisplay.style.display = 'inline';
+        }
+        
+        this.showNotification(`Sound file selected: ${file.name}`, 'success');
+    }
+    
+    clearFileSelection() {
+        this.selectedAudioFile = null;
+        const fileInput = document.getElementById('alarmSoundFile');
+        const fileNameDisplay = document.getElementById('selectedFileName');
+        
+        if (fileInput) fileInput.value = '';
+        if (fileNameDisplay) {
+            fileNameDisplay.textContent = '';
+            fileNameDisplay.style.display = 'none';
+        }
+    }
+
+    // Profile Picture Methods
+    openProfileModal() {
+        // Check if user is authenticated before opening modal
+        if (!this.isUserAuthenticated()) {
+            this.showNotification('Please log in to manage your profile picture', 'error');
+            return;
+        }
+        
+        const modal = document.getElementById('profileModal');
+        modal.classList.add('show');
+        this.loadCurrentProfilePicture();
+    }
+
+    closeProfileModal() {
+        const modal = document.getElementById('profileModal');
+        modal.classList.remove('show');
+        this.resetProfileSelection();
+    }
+
+    loadCurrentProfilePicture() {
+        if (this.currentProfileImage) {
+            const preview = document.getElementById('profilePreview');
+            const profilePic = document.getElementById('profilePicture');
+            
+            // Update preview
+            preview.innerHTML = `<img src="${this.currentProfileImage}" alt="Profile Picture">`;
+            
+            // Update header profile picture
+            profilePic.innerHTML = `<img src="${this.currentProfileImage}" alt="Profile Picture">`;
+        }
+    }
+
+    openCamera() {
+        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+            this.showNotification('Camera access not supported in this browser', 'error');
+            return;
+        }
+
+        // Create video element for camera
+        const video = document.createElement('video');
+        video.style.width = '100%';
+        video.style.maxWidth = '400px';
+        video.style.borderRadius = '8px';
+        video.autoplay = true;
+        video.muted = true;
+
+        // Get camera stream
+        navigator.mediaDevices.getUserMedia({ video: true })
+            .then(stream => {
+                video.srcObject = stream;
+                
+                // Replace preview with video
+                const preview = document.getElementById('profilePreview');
+                preview.innerHTML = '';
+                preview.appendChild(video);
+                
+                // Show capture button
+                this.showCaptureButton(stream);
+            })
+            .catch(error => {
+                console.error('Camera access error:', error);
+                this.showNotification('Camera access denied or not available', 'error');
+            });
+    }
+
+    showCaptureButton(stream) {
+        const actions = document.getElementById('profileActions');
+        actions.innerHTML = `
+            <button class="btn btn-success" onclick="alarmSystem.capturePhoto()">
+                <i class="fas fa-camera"></i> Capture Photo
+            </button>
+            <button class="btn btn-secondary" onclick="alarmSystem.cancelCamera()">
+                <i class="fas fa-times"></i> Cancel
+            </button>
+        `;
+        actions.style.display = 'flex';
+        
+        // Store stream for later use
+        this.currentStream = stream;
+    }
+
+    capturePhoto() {
+        const video = document.querySelector('#profilePreview video');
+        const canvas = document.createElement('canvas');
+        const context = canvas.getContext('2d');
+        
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+        
+        // Draw video frame to canvas
+        context.drawImage(video, 0, 0, canvas.width, canvas.height);
+        
+        // Convert to blob
+        canvas.toBlob(blob => {
+            this.selectedProfileImage = blob;
+            this.displaySelectedImage(URL.createObjectURL(blob));
+            this.stopCamera();
+        }, 'image/jpeg', 0.8);
+    }
+
+    cancelCamera() {
+        this.stopCamera();
+        this.resetProfileSelection();
+    }
+
+    stopCamera() {
+        if (this.currentStream) {
+            this.currentStream.getTracks().forEach(track => track.stop());
+            this.currentStream = null;
+        }
+    }
+
+    openGallery() {
+        // Create file input for gallery access
+        const fileInput = document.createElement('input');
+        fileInput.type = 'file';
+        fileInput.accept = 'image/*';
+        fileInput.style.display = 'none';
+        
+        fileInput.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (file) {
+                this.handleProfileImageSelect(file);
+            }
+        });
+        
+        document.body.appendChild(fileInput);
+        fileInput.click();
+        document.body.removeChild(fileInput);
+    }
+
+    handleProfileImageSelect(file) {
+        // Validate file type
+        const validTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+        if (!validTypes.includes(file.type)) {
+            this.showNotification('Please select a valid image file (JPG, PNG, GIF)', 'error');
+            return;
+        }
+        
+        // Validate file size (max 5MB)
+        const maxSize = 5 * 1024 * 1024; // 5MB
+        if (file.size > maxSize) {
+            this.showNotification('File size must be less than 5MB', 'error');
+            return;
+        }
+        
+        this.selectedProfileImage = file;
+        const imageUrl = URL.createObjectURL(file);
+        this.displaySelectedImage(imageUrl);
+    }
+
+    displaySelectedImage(imageUrl) {
+        const preview = document.getElementById('profilePreview');
+        preview.innerHTML = `<img src="${imageUrl}" alt="Selected Profile Picture">`;
+        
+        // Show action buttons
+        const actions = document.getElementById('profileActions');
+        actions.innerHTML = `
+            <button class="btn btn-success" onclick="alarmSystem.saveProfilePicture()">
+                <i class="fas fa-save"></i> Save
+            </button>
+            <button class="btn btn-warning" onclick="alarmSystem.editProfilePicture()">
+                <i class="fas fa-edit"></i> Edit
+            </button>
+            <button class="btn btn-secondary" onclick="alarmSystem.cancelProfileEdit()">
+                <i class="fas fa-times"></i> Cancel
+            </button>
+        `;
+        actions.style.display = 'flex';
+    }
+
+    saveProfilePicture() {
+        if (!this.selectedProfileImage) {
+            this.showNotification('No image selected to save', 'error');
+            return;
+        }
+
+        // Check if user is authenticated
+        if (!this.isUserAuthenticated()) {
+            this.showNotification('User session not found. Please log in again.', 'error');
+            return;
+        }
+
+        try {
+            // Create object URL for the selected image
+            const imageUrl = URL.createObjectURL(this.selectedProfileImage);
+            this.currentProfileImage = imageUrl;
+            
+            // Update profile picture in header
+            const profilePic = document.getElementById('profilePicture');
+            if (profilePic) {
+                profilePic.innerHTML = `<img src="${imageUrl}" alt="Profile Picture">`;
+            }
+            
+            // Save to localStorage with user ID
+            const storageKey = `profile_${this.currentUser.id}`;
+            localStorage.setItem(storageKey, imageUrl);
+            
+            // Also save the image data for persistence
+            if (this.selectedProfileImage instanceof Blob) {
+                // Convert blob to base64 for better persistence
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    localStorage.setItem(`${storageKey}_data`, e.target.result);
+                };
+                reader.readAsDataURL(this.selectedProfileImage);
+            }
+            
+            this.showNotification('Profile picture saved successfully!', 'success');
+            this.closeProfileModal();
+            
+        } catch (error) {
+            console.error('Error saving profile picture:', error);
+            this.showNotification('Error saving profile picture', 'error');
+        }
+    }
+
+    editProfilePicture() {
+        // For now, just reopen the modal to select a new image
+        // In a more advanced implementation, you could add image editing features
+        this.showNotification('Select a new image to replace current profile picture', 'info');
+        this.resetProfileSelection();
+    }
+
+    deleteProfilePicture() {
+        if (confirm('Are you sure you want to delete your profile picture?')) {
+            // Check if user is authenticated
+            if (!this.isUserAuthenticated()) {
+                this.showNotification('User session not found. Please log in again.', 'error');
+                return;
+            }
+            
+            // Remove current profile image
+            this.currentProfileImage = null;
+            
+            // Reset profile picture in header
+            const profilePic = document.getElementById('profilePicture');
+            if (profilePic) {
+                profilePic.innerHTML = '<i class="fas fa-user"></i>';
+            }
+            
+            // Remove from localStorage (both object URL and base64 data)
+            if (this.currentUser && this.currentUser.id) {
+                const storageKey = `profile_${this.currentUser.id}`;
+                localStorage.removeItem(storageKey);
+                localStorage.removeItem(`${storageKey}_data`);
+            }
+            
+            // Reset preview
+            const preview = document.getElementById('profilePreview');
+            if (preview) {
+                preview.innerHTML = '<i class="fas fa-user"></i>';
+            }
+            
+            this.showNotification('Profile picture deleted!', 'success');
+            this.closeProfileModal();
+        }
+    }
+
+    cancelProfileEdit() {
+        this.resetProfileSelection();
+        this.loadCurrentProfilePicture();
+    }
+
+    resetProfileSelection() {
+        this.selectedProfileImage = null;
+        this.stopCamera();
+        
+        const actions = document.getElementById('profileActions');
+        actions.style.display = 'none';
+    }
+
+    loadProfilePicture() {
+        if (this.currentUser && this.currentUser.id) {
+            const storageKey = `profile_${this.currentUser.id}`;
+            let savedImage = localStorage.getItem(storageKey);
+            
+            // If object URL is not available, try base64 data
+            if (!savedImage) {
+                savedImage = localStorage.getItem(`${storageKey}_data`);
+            }
+            
+            if (savedImage) {
+                this.currentProfileImage = savedImage;
+                const profilePic = document.getElementById('profilePicture');
+                if (profilePic) {
+                    profilePic.innerHTML = `<img src="${savedImage}" alt="Profile Picture">`;
+                }
+            } else {
+                // Reset to default if no saved image
+                const profilePic = document.getElementById('profilePicture');
+                if (profilePic) {
+                    profilePic.innerHTML = '<i class="fas fa-user"></i>';
+                }
+            }
+        }
+    }
+
+    refreshProfilePicture() {
+        // This method can be called to refresh the profile picture display
+        // Useful after login or when user data changes
+        setTimeout(() => {
+            this.loadProfilePicture();
+        }, 100); // Small delay to ensure DOM is ready
+    }
+
+    refreshUserSession() {
+        // Refresh the current user session from storage
+        this.currentUser = JSON.parse(localStorage.getItem('currentUser')) || 
+                          JSON.parse(sessionStorage.getItem('currentUser'));
+        
+        if (!this.currentUser) {
+            console.warn('No user session found');
+            return false;
+        }
+        
+        console.log('User session refreshed:', this.currentUser);
+        return true;
+    }
+
+    isUserAuthenticated() {
+        // Check if user is properly authenticated
+        if (!this.currentUser || !this.currentUser.id) {
+            return this.refreshUserSession();
+        }
+        return true;
+    }
+
+    debugUserSession() {
+        // Debug method to check user session status
+        console.log('=== User Session Debug ===');
+        console.log('Current User:', this.currentUser);
+        console.log('LocalStorage currentUser:', localStorage.getItem('currentUser'));
+        console.log('SessionStorage currentUser:', sessionStorage.getItem('currentUser'));
+        console.log('Is Authenticated:', this.isUserAuthenticated());
+        console.log('========================');
+    }
+
+    // Edit Alarm Methods
+    openEditAlarmModal(alarmId) {
+        const alarm = this.alarms.find(a => a.id === alarmId);
+        if (!alarm) {
+            this.showNotification('Alarm not found', 'error');
+            return;
+        }
+
+        // Store the alarm being edited
+        this.editingAlarm = alarm;
+        
+        // Populate the edit form
+        this.populateEditForm(alarm);
+        
+        // Show the modal
+        const modal = document.getElementById('editAlarmModal');
+        modal.classList.add('show');
+    }
+
+    populateEditForm(alarm) {
+        // Populate form with alarm data
+        document.getElementById('editAlarmTime').value = alarm.time;
+        document.getElementById('editAlarmLabel').value = alarm.label;
+        
+        // Set repeat options
+        const editRepeatTypeRadios = document.querySelectorAll('input[name="editRepeatType"]');
+        editRepeatTypeRadios.forEach(radio => {
+            radio.checked = radio.value === (alarm.repeatType || 'once');
+        });
+        
+        // Show/hide weekly days group based on repeat type
+        const editWeeklyDaysGroup = document.getElementById('editWeeklyDaysGroup');
+        if (alarm.repeatType === 'weekly') {
+            editWeeklyDaysGroup.style.display = 'block';
+            // Set selected days
+            const editDayCheckboxes = document.querySelectorAll('#editWeeklyDaysGroup input[type="checkbox"]');
+            editDayCheckboxes.forEach(cb => {
+                cb.checked = alarm.repeatDays && alarm.repeatDays.includes(parseInt(cb.value));
+            });
+        } else {
+            editWeeklyDaysGroup.style.display = 'none';
+        }
+        
+        // Clear previous audio file selection
+        this.selectedEditAudioFile = null;
+        document.getElementById('editSelectedFileName').textContent = '';
+        document.getElementById('editSelectedFileName').style.display = 'none';
+        
+        // Show current custom sound if exists
+        if (alarm.customSoundName) {
+            document.getElementById('editSelectedFileName').textContent = `Current: ${alarm.customSoundName}`;
+            document.getElementById('editSelectedFileName').style.display = 'inline';
+        }
+    }
+
+    closeEditAlarmModal() {
+        const modal = document.getElementById('editAlarmModal');
+        modal.classList.remove('show');
+        
+        // Reset form
+        document.getElementById('editAlarmTime').value = '';
+        document.getElementById('editAlarmLabel').value = '';
+        this.clearEditFileSelection();
+        this.resetEditRepeatOptions();
+        
+        // Clear editing alarm
+        this.editingAlarm = null;
+    }
+
+    async saveEditAlarm() {
+        if (!this.editingAlarm) {
+            this.showNotification('No alarm selected for editing', 'error');
+            return;
+        }
+
+        const timeInput = document.getElementById('editAlarmTime');
+        const labelInput = document.getElementById('editAlarmLabel');
+        
+        const time = timeInput.value;
+        const label = labelInput.value.trim() || 'Alarm';
+        const repeatType = this.getEditRepeatType();
+        const repeatDays = repeatType === 'weekly' ? this.getEditSelectedDays() : [];
+        
+        if (!time) {
+            this.showNotification('Please select a time for the alarm.', 'error');
+            return;
+        }
+
+        // Validate weekly selection
+        if (repeatType === 'weekly' && repeatDays.length === 0) {
+            alert('Please select at least one day for weekly repeat.');
+            return;
+        }
+
+        try {
+            // Update alarm properties
+            this.editingAlarm.time = time;
+            this.editingAlarm.label = label;
+            this.editingAlarm.repeatType = repeatType;
+            this.editingAlarm.repeatDays = repeatDays;
+            
+            // Update custom sound if new one selected
+            if (this.selectedEditAudioFile) {
+                const audioUrl = URL.createObjectURL(this.selectedEditAudioFile);
+                this.editingAlarm.customSound = audioUrl;
+                this.editingAlarm.customSoundName = this.selectedEditAudioFile.name;
+            }
+            
+            // Save to backend and localStorage
+            await this.saveAlarms();
+            
+            // Re-render alarms
+            this.renderAlarms();
+            
+            // Close modal
+            this.closeEditAlarmModal();
+            
+            this.showNotification('Alarm updated successfully!', 'success');
+            
+        } catch (error) {
+            console.error('Error updating alarm:', error);
+            this.showNotification('Error updating alarm', 'error');
+        }
+    }
+
+    handleEditAudioFileSelect(e) {
+        const file = e.target.files[0];
+        if (!file) return;
+        
+        // Validate file type
+        const validTypes = ['audio/mpeg', 'audio/wav', 'audio/ogg', 'audio/mp3', 'audio/mp4'];
+        if (!validTypes.includes(file.type)) {
+            this.showNotification('Please select a valid audio file (MP3, WAV, or OGG)', 'error');
+            this.clearEditFileSelection();
+            return;
+        }
+        
+        // Validate file size (max 10MB)
+        const maxSize = 10 * 1024 * 1024; // 10MB in bytes
+        if (file.size > maxSize) {
+            this.showNotification('File size must be less than 10MB', 'error');
+            this.clearEditFileSelection();
+            return;
+        }
+        
+        // Store the file and display file name
+        this.selectedEditAudioFile = file;
+        const fileNameDisplay = document.getElementById('editSelectedFileName');
+        if (fileNameDisplay) {
+            fileNameDisplay.textContent = file.name;
+            fileNameDisplay.style.display = 'inline';
+        }
+        
+        this.showNotification(`Sound file selected: ${file.name}`, 'success');
+    }
+
+    clearEditFileSelection() {
+        this.selectedEditAudioFile = null;
+        const fileInput = document.getElementById('editAlarmSoundFile');
+        const fileNameDisplay = document.getElementById('editSelectedFileName');
+        
+        if (fileInput) fileInput.value = '';
+        if (fileNameDisplay) {
+            fileNameDisplay.textContent = '';
+            fileNameDisplay.style.display = 'none';
+        }
+    }
+
+    testEditCustomSound() {
+        if (!this.selectedEditAudioFile) {
+            this.showNotification('Please select a sound file first', 'error');
+            return;
+        }
+        
+        this.showNotification('Testing custom sound...', 'info');
+        
+        try {
+            const audioUrl = URL.createObjectURL(this.selectedEditAudioFile);
+            const audio = new Audio(audioUrl);
+            audio.volume = 0.8;
+            
+            // Play the custom sound
+            audio.play().then(() => {
+                console.log('Custom sound test playing');
+                
+                // Stop after 5 seconds
+                setTimeout(() => {
+                    audio.pause();
+                    audio.currentTime = 0;
+                    URL.revokeObjectURL(audioUrl);
+                    this.showNotification('Custom sound test completed!', 'success');
+                }, 5000);
+                
+            }).catch(error => {
+                console.error('Error playing custom sound test:', error);
+                URL.revokeObjectURL(audioUrl);
+                this.showNotification('Error playing custom sound', 'error');
+            });
+            
+        } catch (error) {
+            console.error('Error creating custom audio test:', error);
+            this.showNotification('Error testing custom sound', 'error');
+        }
+    }
+
+    // Repeat alarm options
+    setupRepeatOptions() {
+        // Main form repeat options
+        const repeatTypeRadios = document.querySelectorAll('input[name="repeatType"]');
+        const weeklyDaysGroup = document.getElementById('weeklyDaysGroup');
+        
+        repeatTypeRadios.forEach(radio => {
+            radio.addEventListener('change', (e) => {
+                if (e.target.value === 'weekly') {
+                    weeklyDaysGroup.style.display = 'block';
+                } else {
+                    weeklyDaysGroup.style.display = 'none';
+                    // Clear all day selections when not weekly
+                    document.querySelectorAll('#weeklyDaysGroup input[type="checkbox"]').forEach(cb => {
+                        cb.checked = false;
+                    });
+                }
+            });
+        });
+
+        // Edit form repeat options
+        const editRepeatTypeRadios = document.querySelectorAll('input[name="editRepeatType"]');
+        const editWeeklyDaysGroup = document.getElementById('editWeeklyDaysGroup');
+        
+        editRepeatTypeRadios.forEach(radio => {
+            radio.addEventListener('change', (e) => {
+                if (e.target.value === 'weekly') {
+                    editWeeklyDaysGroup.style.display = 'block';
+                } else {
+                    editWeeklyDaysGroup.style.display = 'none';
+                    // Clear all day selections when not weekly
+                    document.querySelectorAll('#editWeeklyDaysGroup input[type="checkbox"]').forEach(cb => {
+                        cb.checked = false;
+                    });
+                }
+            });
+        });
+    }
+
+    getSelectedDays() {
+        const selectedDays = [];
+        document.querySelectorAll('#weeklyDaysGroup input[type="checkbox"]:checked').forEach(cb => {
+            selectedDays.push(parseInt(cb.value));
+        });
+        return selectedDays;
+    }
+
+    getEditSelectedDays() {
+        const selectedDays = [];
+        document.querySelectorAll('#editWeeklyDaysGroup input[type="checkbox"]:checked').forEach(cb => {
+            selectedDays.push(parseInt(cb.value));
+        });
+        return selectedDays;
+    }
+
+    getRepeatType() {
+        const selectedRadio = document.querySelector('input[name="repeatType"]:checked');
+        return selectedRadio ? selectedRadio.value : 'once';
+    }
+
+    getEditRepeatType() {
+        const selectedRadio = document.querySelector('input[name="editRepeatType"]:checked');
+        return selectedRadio ? selectedRadio.value : 'once';
+    }
+
+    formatRepeatInfo(alarm) {
+        if (!alarm.repeatType || alarm.repeatType === 'once') {
+            return 'Once';
+        } else if (alarm.repeatType === 'daily') {
+            return 'Daily';
+        } else if (alarm.repeatType === 'weekly' && alarm.repeatDays) {
+            const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+            const selectedDays = alarm.repeatDays.map(day => dayNames[day]).join(', ');
+            return `Weekly (${selectedDays})`;
+        }
+        return 'Once';
+    }
+
+    resetRepeatOptions() {
+        // Reset main form repeat options
+        document.querySelector('input[name="repeatType"][value="once"]').checked = true;
+        document.getElementById('weeklyDaysGroup').style.display = 'none';
+        document.querySelectorAll('#weeklyDaysGroup input[type="checkbox"]').forEach(cb => {
+            cb.checked = false;
+        });
+    }
+
+    resetEditRepeatOptions() {
+        // Reset edit form repeat options
+        document.querySelector('input[name="editRepeatType"][value="once"]').checked = true;
+        document.getElementById('editWeeklyDaysGroup').style.display = 'none';
+        document.querySelectorAll('#editWeeklyDaysGroup input[type="checkbox"]').forEach(cb => {
+            cb.checked = false;
+        });
+    }
 }
 
 // Add CSS animations for notifications
@@ -908,5 +1965,79 @@ document.head.appendChild(style);
 
 // Initialize the alarm system when the page loads
 document.addEventListener('DOMContentLoaded', () => {
-    new AlarmSystem();
-}); 
+    window.alarmSystem = new AlarmSystem();
+});
+
+// Global functions for HTML onclick events
+function openProfileModal() {
+    if (window.alarmSystem) {
+        window.alarmSystem.openProfileModal();
+    }
+}
+
+function closeProfileModal() {
+    if (window.alarmSystem) {
+        window.alarmSystem.closeProfileModal();
+    }
+}
+
+function openCamera() {
+    if (window.alarmSystem) {
+        window.alarmSystem.openCamera();
+    }
+}
+
+function openGallery() {
+    if (window.alarmSystem) {
+        window.alarmSystem.openGallery();
+    }
+}
+
+function saveProfilePicture() {
+    if (window.alarmSystem) {
+        window.alarmSystem.saveProfilePicture();
+    }
+}
+
+function editProfilePicture() {
+    if (window.alarmSystem) {
+        window.alarmSystem.editProfilePicture();
+    }
+}
+
+function deleteProfilePicture() {
+    if (window.alarmSystem) {
+        window.alarmSystem.deleteProfilePicture();
+    }
+}
+
+function cancelProfileEdit() {
+    if (window.alarmSystem) {
+        window.alarmSystem.cancelProfileEdit();
+    }
+}
+
+function cancelCamera() {
+    if (window.alarmSystem) {
+        window.alarmSystem.cancelCamera();
+    }
+}
+
+function capturePhoto() {
+    if (window.alarmSystem) {
+        window.alarmSystem.capturePhoto();
+    }
+}
+
+// Edit Alarm Global Functions
+function closeEditAlarmModal() {
+    if (window.alarmSystem) {
+        window.alarmSystem.closeEditAlarmModal();
+    }
+}
+
+function saveEditAlarm() {
+    if (window.alarmSystem) {
+        window.alarmSystem.saveEditAlarm();
+    }
+} 

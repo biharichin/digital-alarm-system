@@ -2,8 +2,8 @@ class AuthSystem {
     constructor() {
         // API base URL - supports both localhost and network access
 this.API_BASE_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' 
-    ? 'http://localhost:3000/api' 
-    : 'http://192.168.94.218:3000/api';
+    ? 'http://localhost:3001/api' 
+    : 'http://192.168.94.218:3001/api';
         this.currentUser = JSON.parse(localStorage.getItem('currentUser')) || null;
         this.userStats = JSON.parse(localStorage.getItem('userStats')) || {};
         
@@ -11,6 +11,7 @@ this.API_BASE_URL = window.location.hostname === 'localhost' || window.location.
     }
 
     init() {
+        this.checkCountryAccess();
         this.setupEventListeners();
         this.checkAuthStatus();
         this.loadUserStats();
@@ -68,10 +69,11 @@ this.API_BASE_URL = window.location.hostname === 'localhost' || window.location.
         const password = document.getElementById('signupPassword').value;
         const confirmPassword = document.getElementById('signupConfirmPassword').value;
         const age = parseInt(document.getElementById('signupAge').value);
+        const country = document.getElementById('signupCountry').value;
         const agreeTerms = document.getElementById('agreeTerms').checked;
 
         // Validation
-        if (!this.validateSignup(username, email, password, confirmPassword, age, agreeTerms)) {
+        if (!this.validateSignup(username, email, password, confirmPassword, age, country, agreeTerms)) {
             return;
         }
 
@@ -88,7 +90,8 @@ this.API_BASE_URL = window.location.hostname === 'localhost' || window.location.
                     username: username,
                     email: email,
                     password: password,
-                    age: age
+                    age: age,
+                    country: country
                 })
             });
 
@@ -176,7 +179,7 @@ this.API_BASE_URL = window.location.hostname === 'localhost' || window.location.
         }
     }
 
-    validateSignup(name, email, password, confirmPassword, age, agreeTerms) {
+    validateSignup(name, email, password, confirmPassword, age, country, agreeTerms) {
         // Name validation
         if (name.length < 2) {
             this.showError('Name must be at least 2 characters long.');
@@ -198,6 +201,17 @@ this.API_BASE_URL = window.location.hostname === 'localhost' || window.location.
 
         if (age > 120) {
             this.showError('Please enter a valid age.');
+            return false;
+        }
+
+        // Country validation - Only India is allowed
+        if (!country || country === '') {
+            this.showError('Please select your country.');
+            return false;
+        }
+
+        if (country !== 'India') {
+            this.showError('Sorry, this application is currently only available for users from India. Only Indian citizens can sign up.');
             return false;
         }
 
@@ -249,6 +263,28 @@ this.API_BASE_URL = window.location.hostname === 'localhost' || window.location.
 
     verifyPassword(password, hashedPassword) {
         return this.hashPassword(password) === hashedPassword;
+    }
+
+    checkCountryAccess() {
+        // Check if user has confirmed they're from India
+        const userCountry = sessionStorage.getItem('userCountry');
+        
+        if (!userCountry || userCountry !== 'India') {
+            // User hasn't confirmed they're from India, redirect to country check
+            window.location.href = 'country-check.html';
+            return;
+        } else {
+            // User has confirmed they're from India, set the country field
+            this.setIndiaAsSelected();
+        }
+    }
+
+    setIndiaAsSelected() {
+        // Set India as selected in the country dropdown
+        const countrySelect = document.getElementById('signupCountry');
+        if (countrySelect) {
+            countrySelect.value = 'India';
+        }
     }
 
     checkAuthStatus() {
