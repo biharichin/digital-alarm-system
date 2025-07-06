@@ -1,5 +1,10 @@
 class AlarmSystem {
     constructor() {
+        // API base URL - supports both localhost and network access
+        this.API_BASE_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' 
+            ? 'http://localhost:3001/api' 
+            : 'http://192.168.94.218:3001/api';
+            
         this.currentUser = JSON.parse(localStorage.getItem('currentUser')) || 
                           JSON.parse(sessionStorage.getItem('currentUser'));
         this.alarms = [];
@@ -17,7 +22,7 @@ class AlarmSystem {
         
         try {
             // Try to load from backend first
-            const response = await fetch(`http://localhost:3001/api/users/${this.currentUser.id}/alarms`);
+            const response = await fetch(`${this.API_BASE_URL}/users/${this.currentUser.id}/alarms`);
             if (response.ok) {
                 const result = await response.json();
                 if (result.success) {
@@ -204,7 +209,7 @@ class AlarmSystem {
         
         try {
             // Save to backend first
-            const response = await fetch(`http://localhost:3001/api/users/${this.currentUser.id}/alarms`, {
+            const response = await fetch(`${this.API_BASE_URL}/users/${this.currentUser.id}/alarms`, {
                 method: 'PUT',
                 headers: {
                     'Content-Type': 'application/json'
@@ -232,7 +237,7 @@ class AlarmSystem {
         
         try {
             // Update user stats on backend
-            const response = await fetch(`http://localhost:3001/api/users/${this.currentUser.id}/stats`, {
+            const response = await fetch(`${this.API_BASE_URL}/users/${this.currentUser.id}/stats`, {
                 method: 'PUT',
                 headers: {
                     'Content-Type': 'application/json'
