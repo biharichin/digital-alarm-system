@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Digital Alarm System - Welcome</title>
+    <link rel="stylesheet" href="auth-styles.css">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        .welcome-container {
+            background: white;
+            border-radius: 20px;
+            padding: 40px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            width: 100%;
+            max-width: 500px;
+            text-align: center;
+        }
+
+        .welcome-buttons {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            margin-top: 30px;
+        }
+
+        .welcome-btn {
+            padding: 15px 30px;
+            border: none;
+            border-radius: 12px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            text-decoration: none;
+        }
+
+        .welcome-btn.primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .welcome-btn.primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(102, 126, 234, 0.4);
+        }
+
+        .welcome-btn.secondary {
+            background: #6c757d;
+            color: white;
+        }
+
+        .welcome-btn.secondary:hover {
+            background: #5a6268;
+            transform: translateY(-2px);
+        }
+
+        .welcome-btn.success {
+            background: linear-gradient(135deg, #28a745, #20c997);
+            color: white;
+        }
+
+        .welcome-btn.success:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(40, 167, 69, 0.4);
+        }
+
+        .feature-highlight {
+            background: linear-gradient(135deg, #fff3cd, #ffeaa7);
+            border: 1px solid #ffeaa7;
+            border-radius: 10px;
+            padding: 15px;
+            margin: 20px 0;
+            color: #856404;
+            font-weight: 500;
+        }
+
+        .feature-highlight i {
+            color: #f39c12;
+            margin-right: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="hero-section">
+            <div class="hero-content">
+                <h1><i class="fas fa-clock"></i> Digital Alarm System</h1>
+                <p class="hero-subtitle">Smart alarms for modern life</p>
+                <div class="love-message" onclick="showLovePopup()">💕 I Love You Chinmayee 💕</div>
+                <div class="features">
+                    <div class="feature">
+                        <i class="fas fa-bell"></i>
+                        <span>Multiple Alarms</span>
+                    </div>
+                    <div class="feature">
+                        <i class="fas fa-mobile-alt"></i>
+                        <span>Mobile Friendly</span>
+                    </div>
+                    <div class="feature">
+                        <i class="fas fa-cloud"></i>
+                        <span>Cloud Sync</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="auth-section">
+            <div class="welcome-container">
+                <h2><i class="fas fa-home"></i> Welcome to Digital Alarm System</h2>
+                <p>Choose how you'd like to get started</p>
+                
+                <div class="feature-highlight">
+                    <i class="fas fa-info-circle"></i>
+                    <span>Currently available only for users from India</span>
+                </div>
+
+                <div class="welcome-buttons">
+                    <a href="country-check.html" class="welcome-btn primary">
+                        <i class="fas fa-globe"></i>
+                        New User - Start Here
+                    </a>
+                    
+                    <a href="index.html" class="welcome-btn secondary">
+                        <i class="fas fa-sign-in-alt"></i>
+                        I Already Have an Account
+                    </a>
+                    
+                    <a href="test-country-restriction.html" class="welcome-btn success">
+                        <i class="fas fa-flask"></i>
+                        Test Country Restriction
+                    </a>
+                </div>
+
+                <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #e1e5e9;">
+                    <p style="color: #666; font-size: 14px;">
+                        <i class="fas fa-shield-alt"></i>
+                        Your privacy and security are our top priorities
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Love Popup Modal -->
+    <div class="modal" id="lovePopup">
+        <div class="modal-content love-popup-content">
+            <div class="love-icon">
+                <i class="fas fa-heart"></i>
+            </div>
+            <h3>Thank You Krishna</h3>
+            <p>💕 With love and gratitude 💕</p>
+        </div>
+    </div>
+
+    <script>
+        // Love popup
+        function showLovePopup() {
+            const popup = document.getElementById('lovePopup');
+            popup.classList.add('show');
+            
+            // Auto-hide after 5 seconds
+            setTimeout(() => {
+                popup.classList.remove('show');
+            }, 5000);
+        }
+
+        // Close popup when clicking outside
+        document.getElementById('lovePopup').addEventListener('click', function(e) {
+            if (e.target === this) {
+                this.classList.remove('show');
+            }
+        });
+
+        // Check if user is already logged in
+        document.addEventListener('DOMContentLoaded', function() {
+            const currentUser = JSON.parse(localStorage.getItem('currentUser')) || 
+                               JSON.parse(sessionStorage.getItem('currentUser'));
+            
+            if (currentUser) {
+                // User is already logged in, redirect to dashboard
+                window.location.href = 'dashboard.html';
+            }
+        });
+    </script>
+</body>
+</html> 

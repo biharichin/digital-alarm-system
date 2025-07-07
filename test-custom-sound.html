@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Custom Sound Test - Digital Alarm System</title>
+    <link rel="stylesheet" href="alarm-system/styles.css">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        .test-container {
+            max-width: 600px;
+            margin: 50px auto;
+            padding: 30px;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        }
+        
+        .test-section {
+            margin-bottom: 30px;
+            padding: 20px;
+            border: 2px solid #f0f0f0;
+            border-radius: 10px;
+        }
+        
+        .test-section h3 {
+            color: #333;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .feature-list {
+            list-style: none;
+            padding: 0;
+        }
+        
+        .feature-list li {
+            padding: 8px 0;
+            border-bottom: 1px solid #eee;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .feature-list li:last-child {
+            border-bottom: none;
+        }
+        
+        .feature-list i {
+            color: #28a745;
+            width: 20px;
+        }
+        
+        .demo-form {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 8px;
+            margin-top: 15px;
+        }
+        
+        .back-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            background: #667eea;
+            color: white;
+            padding: 12px 24px;
+            border-radius: 8px;
+            text-decoration: none;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+        
+        .back-btn:hover {
+            background: #5a67d8;
+            transform: translateY(-2px);
+        }
+    </style>
+</head>
+<body>
+    <div class="test-container">
+        <header style="text-align: center; margin-bottom: 30px;">
+            <h1><i class="fas fa-music"></i> Custom Sound Feature Test</h1>
+            <p>Test the new custom alarm sound functionality</p>
+        </header>
+
+        <div class="test-section">
+            <h3><i class="fas fa-star"></i> New Features</h3>
+            <ul class="feature-list">
+                <li><i class="fas fa-check"></i> Select custom audio files from your device</li>
+                <li><i class="fas fa-check"></i> Support for MP3, WAV, and OGG formats</li>
+                <li><i class="fas fa-check"></i> File size validation (max 10MB)</li>
+                <li><i class="fas fa-check"></i> Preview custom sounds before setting alarms</li>
+                <li><i class="fas fa-check"></i> Visual indicator for alarms with custom sounds</li>
+                <li><i class="fas fa-check"></i> Automatic memory cleanup for deleted alarms</li>
+                <li><i class="fas fa-check"></i> Fallback to default beep if custom sound fails</li>
+            </ul>
+        </div>
+
+        <div class="test-section">
+            <h3><i class="fas fa-play"></i> How to Use</h3>
+            <ol style="padding-left: 20px;">
+                <li>Go to the main alarm dashboard</li>
+                <li>Click "Select Sound File" to choose an audio file</li>
+                <li>Click "Test Sound" to preview your selection</li>
+                <li>Set your alarm time and label</li>
+                <li>Click "Add Alarm" to create the alarm with custom sound</li>
+                <li>When the alarm triggers, it will play your custom sound</li>
+            </ol>
+        </div>
+
+        <div class="test-section">
+            <h3><i class="fas fa-cog"></i> Technical Details</h3>
+            <div class="demo-form">
+                <p><strong>Supported Formats:</strong> MP3, WAV, OGG, MP4 (audio)</p>
+                <p><strong>Maximum File Size:</strong> 10MB</p>
+                <p><strong>Storage:</strong> Files are stored as object URLs in browser memory</p>
+                <p><strong>Persistence:</strong> Custom sounds are saved with alarm data</p>
+                <p><strong>Fallback:</strong> Automatic fallback to default beep sounds</p>
+                <p><strong>Memory Management:</strong> Automatic cleanup when alarms are deleted</p>
+            </div>
+        </div>
+
+        <div class="test-section">
+            <h3><i class="fas fa-exclamation-triangle"></i> Important Notes</h3>
+            <ul class="feature-list">
+                <li><i class="fas fa-info-circle"></i> Custom sounds are stored locally in your browser</li>
+                <li><i class="fas fa-info-circle"></i> Sounds will be lost if you clear browser data</li>
+                <li><i class="fas fa-info-circle"></i> Some browsers may require user interaction to play audio</li>
+                <li><i class="fas fa-info-circle"></i> Mobile devices may have different audio behavior</li>
+            </ul>
+        </div>
+
+        <div style="text-align: center; margin-top: 30px;">
+            <a href="alarm-system/dashboard.html" class="back-btn">
+                <i class="fas fa-arrow-left"></i>
+                Go to Alarm Dashboard
+            </a>
+        </div>
+    </div>
+
+    <script>
+        // Add some interactive elements
+        document.addEventListener('DOMContentLoaded', function() {
+            // Add click effects to feature list items
+            const featureItems = document.querySelectorAll('.feature-list li');
+            featureItems.forEach(item => {
+                item.addEventListener('click', function() {
+                    this.style.backgroundColor = '#e8f5e8';
+                    setTimeout(() => {
+                        this.style.backgroundColor = '';
+                    }, 200);
+                });
+            });
+        });
+    </script>
+</body>
+</html> 

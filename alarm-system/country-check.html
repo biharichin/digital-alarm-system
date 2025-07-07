@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Digital Alarm System - Country Check</title>
+    <link rel="stylesheet" href="auth-styles.css">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        .country-check-container {
+            background: white;
+            border-radius: 20px;
+            padding: 40px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            width: 100%;
+            max-width: 500px;
+            text-align: center;
+        }
+
+        .country-question {
+            font-size: 1.5rem;
+            color: #333;
+            margin-bottom: 30px;
+            font-weight: 600;
+        }
+
+        .country-options {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            margin-bottom: 30px;
+        }
+
+        .country-option {
+            padding: 15px 20px;
+            border: 2px solid #e1e5e9;
+            border-radius: 12px;
+            background: white;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            font-size: 16px;
+            font-weight: 500;
+        }
+
+        .country-option:hover {
+            border-color: #667eea;
+            background: #f8f9ff;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.1);
+        }
+
+        .country-option.selected {
+            border-color: #667eea;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .country-option i {
+            font-size: 20px;
+        }
+
+        .country-option.india {
+            border-color: #28a745;
+            background: linear-gradient(135deg, #28a745, #20c997);
+            color: white;
+        }
+
+        .country-option.india:hover {
+            border-color: #28a745;
+            background: linear-gradient(135deg, #28a745, #20c997);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(40, 167, 69, 0.3);
+        }
+
+        .country-option.india.selected {
+            border-color: #28a745;
+            background: linear-gradient(135deg, #28a745, #20c997);
+            color: white;
+        }
+
+        .proceed-btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 12px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: none;
+        }
+
+        .proceed-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(102, 126, 234, 0.4);
+        }
+
+        .proceed-btn.show {
+            display: inline-block;
+        }
+
+        .error-message {
+            background: #f8d7da;
+            color: #721c24;
+            padding: 15px;
+            border-radius: 10px;
+            margin-top: 20px;
+            display: none;
+        }
+
+        .error-message.show {
+            display: block;
+        }
+
+        .back-btn {
+            background: #6c757d;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 8px;
+            font-size: 14px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin-top: 20px;
+        }
+
+        .back-btn:hover {
+            background: #5a6268;
+        }
+
+        .welcome-message {
+            background: linear-gradient(135deg, #d4edda, #c3e6cb);
+            border: 1px solid #c3e6cb;
+            border-radius: 10px;
+            padding: 15px;
+            margin-bottom: 30px;
+            color: #155724;
+            font-weight: 500;
+        }
+
+        .welcome-message i {
+            color: #28a745;
+            margin-right: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="hero-section">
+            <div class="hero-content">
+                <h1><i class="fas fa-clock"></i> Digital Alarm System</h1>
+                <p class="hero-subtitle">Smart alarms for modern life</p>
+                <div class="love-message" onclick="showLovePopup()">💕 I Love You Chinmayee 💕</div>
+                <div class="features">
+                    <div class="feature">
+                        <i class="fas fa-bell"></i>
+                        <span>Multiple Alarms</span>
+                    </div>
+                    <div class="feature">
+                        <i class="fas fa-mobile-alt"></i>
+                        <span>Mobile Friendly</span>
+                    </div>
+                    <div class="feature">
+                        <i class="fas fa-cloud"></i>
+                        <span>Cloud Sync</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="auth-section">
+            <div class="country-check-container">
+                <h2><i class="fas fa-globe"></i> Welcome!</h2>
+                <p>Please tell us where you're from to continue</p>
+                
+                <div class="welcome-message">
+                    <i class="fas fa-info-circle"></i>
+                    <span>Currently available only for users from India</span>
+                </div>
+
+                <div class="country-question">
+                    Which country are you from?
+                </div>
+
+                <div class="country-options">
+                    <div class="country-option india" data-country="India">
+                        <i class="fas fa-flag"></i>
+                        <span>India 🇮🇳</span>
+                    </div>
+                    <div class="country-option" data-country="United States">
+                        <i class="fas fa-flag"></i>
+                        <span>United States 🇺🇸</span>
+                    </div>
+                    <div class="country-option" data-country="United Kingdom">
+                        <i class="fas fa-flag"></i>
+                        <span>United Kingdom 🇬🇧</span>
+                    </div>
+                    <div class="country-option" data-country="Canada">
+                        <i class="fas fa-flag"></i>
+                        <span>Canada 🇨🇦</span>
+                    </div>
+                    <div class="country-option" data-country="Australia">
+                        <i class="fas fa-flag"></i>
+                        <span>Australia 🇦🇺</span>
+                    </div>
+                    <div class="country-option" data-country="Germany">
+                        <i class="fas fa-flag"></i>
+                        <span>Germany 🇩🇪</span>
+                    </div>
+                    <div class="country-option" data-country="France">
+                        <i class="fas fa-flag"></i>
+                        <span>France 🇫🇷</span>
+                    </div>
+                    <div class="country-option" data-country="Japan">
+                        <i class="fas fa-flag"></i>
+                        <span>Japan 🇯🇵</span>
+                    </div>
+                    <div class="country-option" data-country="Other">
+                        <i class="fas fa-globe"></i>
+                        <span>Other Country</span>
+                    </div>
+                </div>
+
+                <button class="proceed-btn" id="proceedBtn">
+                    <i class="fas fa-arrow-right"></i> Continue to Sign Up
+                </button>
+
+                <div class="error-message" id="errorMessage">
+                    <i class="fas fa-exclamation-triangle"></i>
+                    Sorry, this application is currently only available for users from India. We're working on expanding to other countries soon!
+                </div>
+
+                <button class="back-btn" onclick="goBack()">
+                    <i class="fas fa-arrow-left"></i> Go Back
+                </button>
+                
+                <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #e1e5e9;">
+                    <p style="color: #666; font-size: 14px; margin-bottom: 10px;">For testing purposes:</p>
+                    <button class="back-btn" onclick="skipCountryCheck()" style="background: #17a2b8;">
+                        <i class="fas fa-flask"></i> Skip Country Check (Test Mode)
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Love Popup Modal -->
+    <div class="modal" id="lovePopup">
+        <div class="modal-content love-popup-content">
+            <div class="love-icon">
+                <i class="fas fa-heart"></i>
+            </div>
+            <h3>Thank You Krishna</h3>
+            <p>💕 With love and gratitude 💕</p>
+        </div>
+    </div>
+
+    <script>
+        let selectedCountry = '';
+
+        // Country selection
+        document.querySelectorAll('.country-option').forEach(option => {
+            option.addEventListener('click', function() {
+                // Remove previous selection
+                document.querySelectorAll('.country-option').forEach(opt => {
+                    opt.classList.remove('selected');
+                });
+                
+                // Add selection to clicked option
+                this.classList.add('selected');
+                selectedCountry = this.dataset.country;
+                
+                // Show/hide proceed button and error message
+                const proceedBtn = document.getElementById('proceedBtn');
+                const errorMessage = document.getElementById('errorMessage');
+                
+                if (selectedCountry === 'India') {
+                    proceedBtn.classList.add('show');
+                    errorMessage.classList.remove('show');
+                } else {
+                    proceedBtn.classList.remove('show');
+                    errorMessage.classList.add('show');
+                }
+            });
+        });
+
+        // Proceed button
+        document.getElementById('proceedBtn').addEventListener('click', function() {
+            if (selectedCountry === 'India') {
+                // Store the country selection
+                sessionStorage.setItem('userCountry', selectedCountry);
+                // Redirect to signup page
+                window.location.href = 'index.html';
+            }
+        });
+
+        // Go back function
+        function goBack() {
+            window.history.back();
+        }
+
+        // Skip country check (for testing)
+        function skipCountryCheck() {
+            sessionStorage.setItem('userCountry', 'India');
+            window.location.href = 'index.html';
+        }
+
+        // Love popup
+        function showLovePopup() {
+            const popup = document.getElementById('lovePopup');
+            popup.classList.add('show');
+            
+            // Auto-hide after 5 seconds
+            setTimeout(() => {
+                popup.classList.remove('show');
+            }, 5000);
+        }
+
+        // Close popup when clicking outside
+        document.getElementById('lovePopup').addEventListener('click', function(e) {
+            if (e.target === this) {
+                this.classList.remove('show');
+            }
+        });
+    </script>
+</body>
+</html> 

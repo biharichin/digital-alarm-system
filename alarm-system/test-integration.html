@@ -1,0 +1,338 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Alarm System Integration Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .test-section {
+            margin-bottom: 30px;
+            padding: 20px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        .test-result {
+            margin-top: 10px;
+            padding: 10px;
+            border-radius: 5px;
+        }
+        .success {
+            background-color: #d4edda;
+            border: 1px solid #c3e6cb;
+            color: #155724;
+        }
+        .error {
+            background-color: #f8d7da;
+            border: 1px solid #f5c6cb;
+            color: #721c24;
+        }
+        .info {
+            background-color: #d1ecf1;
+            border: 1px solid #bee5eb;
+            color: #0c5460;
+        }
+        button {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        .status {
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔗 Alarm System Backend Integration Test</h1>
+        <p>This page tests the integration between your alarm system frontend and the Node.js backend.</p>
+
+        <div class="test-section">
+            <h2>1. Backend Connection Test</h2>
+            <div class="status" id="backendStatus">Checking backend status...</div>
+            <button onclick="testBackendConnection()">Test Backend Connection</button>
+            <div id="backendResult" class="test-result" style="display: none;"></div>
+        </div>
+
+        <div class="test-section">
+            <h2>2. User Registration Test</h2>
+            <button onclick="testUserRegistration()">Test User Registration</button>
+            <div id="registrationResult" class="test-result" style="display: none;"></div>
+        </div>
+
+        <div class="test-section">
+            <h2>3. User Login Test</h2>
+            <button onclick="testUserLogin()">Test User Login</button>
+            <div id="loginResult" class="test-result" style="display: none;"></div>
+        </div>
+
+        <div class="test-section">
+            <h2>4. Alarm System Integration Test</h2>
+            <button onclick="testAlarmSystem()">Test Alarm System</button>
+            <div id="alarmResult" class="test-result" style="display: none;"></div>
+        </div>
+
+        <div class="test-section">
+            <h2>5. Admin Panel Test</h2>
+            <button onclick="testAdminPanel()">Test Admin Panel</button>
+            <div id="adminResult" class="test-result" style="display: none;"></div>
+        </div>
+
+        <div class="test-section">
+            <h2>6. Full Integration Test</h2>
+            <button onclick="runFullTest()">Run Complete Integration Test</button>
+            <div id="fullTestResult" class="test-result" style="display: none;"></div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE_URL = 'http://localhost:3001/api';
+        let testUser = null;
+
+        function showResult(elementId, message, type = 'info') {
+            const element = document.getElementById(elementId);
+            element.textContent = message;
+            element.className = `test-result ${type}`;
+            element.style.display = 'block';
+        }
+
+        async function testBackendConnection() {
+            try {
+                const response = await fetch(`${API_BASE_URL}/health`);
+                const result = await response.json();
+                
+                if (result.success) {
+                    showResult('backendResult', 
+                        `✅ Backend is running!\nMessage: ${result.message}\nTimestamp: ${result.timestamp}`, 'success');
+                    document.getElementById('backendStatus').textContent = '✅ Backend Connected';
+                    document.getElementById('backendStatus').style.color = 'green';
+                } else {
+                    showResult('backendResult', '❌ Backend responded with error', 'error');
+                }
+            } catch (error) {
+                showResult('backendResult', 
+                    `❌ Backend connection failed: ${error.message}\n\nMake sure the backend server is running:\ncd backend && npm run dev`, 'error');
+                document.getElementById('backendStatus').textContent = '❌ Backend Not Connected';
+                document.getElementById('backendStatus').style.color = 'red';
+            }
+        }
+
+        async function testUserRegistration() {
+            const testEmail = `test${Date.now()}@example.com`;
+            const userData = {
+                username: `testuser${Date.now()}`,
+                email: testEmail,
+                password: 'testpassword123',
+                age: 25
+            };
+
+            try {
+                const response = await fetch(`${API_BASE_URL}/signup`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(userData)
+                });
+
+                const result = await response.json();
+                
+                if (result.success) {
+                    testUser = result.user;
+                    showResult('registrationResult', 
+                        `✅ User registration successful!\nUser ID: ${result.user.id}\nUsername: ${result.user.username}\nEmail: ${result.user.email}`, 'success');
+                } else {
+                    showResult('registrationResult', `❌ Registration failed: ${result.message}`, 'error');
+                }
+            } catch (error) {
+                showResult('registrationResult', `❌ Registration error: ${error.message}`, 'error');
+            }
+        }
+
+        async function testUserLogin() {
+            if (!testUser) {
+                showResult('loginResult', '❌ No test user available. Run registration test first.', 'error');
+                return;
+            }
+
+            const loginData = {
+                email: testUser.email,
+                password: 'testpassword123'
+            };
+
+            try {
+                const response = await fetch(`${API_BASE_URL}/login`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(loginData)
+                });
+
+                const result = await response.json();
+                
+                if (result.success) {
+                    showResult('loginResult', 
+                        `✅ User login successful!\nUsername: ${result.user.username}\nLast Login: ${result.user.lastLogin}`, 'success');
+                } else {
+                    showResult('loginResult', `❌ Login failed: ${result.message}`, 'error');
+                }
+            } catch (error) {
+                showResult('loginResult', `❌ Login error: ${error.message}`, 'error');
+            }
+        }
+
+        async function testAlarmSystem() {
+            if (!testUser) {
+                showResult('alarmResult', '❌ No test user available. Run registration test first.', 'error');
+                return;
+            }
+
+            try {
+                // Test updating user stats (simulating alarm creation)
+                const statsData = {
+                    alarmCount: 3,
+                    totalAlarms: 5
+                };
+
+                const response = await fetch(`${API_BASE_URL}/users/${testUser.id}/stats`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(statsData)
+                });
+
+                const result = await response.json();
+                
+                if (result.success) {
+                    showResult('alarmResult', 
+                        `✅ Alarm system integration working!\nUser stats updated successfully.\nAlarm Count: ${statsData.alarmCount}\nTotal Alarms: ${statsData.totalAlarms}`, 'success');
+                } else {
+                    showResult('alarmResult', `❌ Stats update failed: ${result.message}`, 'error');
+                }
+            } catch (error) {
+                showResult('alarmResult', `❌ Alarm system error: ${error.message}`, 'error');
+            }
+        }
+
+        async function testAdminPanel() {
+            try {
+                const response = await fetch(`${API_BASE_URL}/admin/users`);
+                const result = await response.json();
+                
+                if (result.success) {
+                    showResult('adminResult', 
+                        `✅ Admin panel working!\nTotal Users: ${result.count}\nUsers: ${result.users.map(u => u.username).join(', ')}`, 'success');
+                } else {
+                    showResult('adminResult', `❌ Admin panel failed: ${result.message}`, 'error');
+                }
+            } catch (error) {
+                showResult('adminResult', `❌ Admin panel error: ${error.message}`, 'error');
+            }
+        }
+
+        async function runFullTest() {
+            showResult('fullTestResult', '🔄 Running complete integration test...', 'info');
+            
+            try {
+                // Test 1: Backend connection
+                const healthResponse = await fetch(`${API_BASE_URL}/health`);
+                const healthResult = await healthResponse.json();
+                
+                if (!healthResult.success) {
+                    throw new Error('Backend health check failed');
+                }
+
+                // Test 2: User registration
+                const testEmail = `fulltest${Date.now()}@example.com`;
+                const userData = {
+                    username: `fulltestuser${Date.now()}`,
+                    email: testEmail,
+                    password: 'testpassword123',
+                    age: 25
+                };
+
+                const regResponse = await fetch(`${API_BASE_URL}/signup`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(userData)
+                });
+
+                const regResult = await regResponse.json();
+                if (!regResult.success) {
+                    throw new Error(`Registration failed: ${regResult.message}`);
+                }
+
+                const fullTestUser = regResult.user;
+
+                // Test 3: User login
+                const loginResponse = await fetch(`${API_BASE_URL}/login`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        email: testEmail,
+                        password: 'testpassword123'
+                    })
+                });
+
+                const loginResult = await loginResponse.json();
+                if (!loginResult.success) {
+                    throw new Error(`Login failed: ${loginResult.message}`);
+                }
+
+                // Test 4: Update user stats
+                const statsResponse = await fetch(`${API_BASE_URL}/users/${fullTestUser.id}/stats`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        alarmCount: 2,
+                        totalAlarms: 4
+                    })
+                });
+
+                const statsResult = await statsResponse.json();
+                if (!statsResult.success) {
+                    throw new Error(`Stats update failed: ${statsResult.message}`);
+                }
+
+                // Test 5: Admin panel
+                const adminResponse = await fetch(`${API_BASE_URL}/admin/users`);
+                const adminResult = await adminResponse.json();
+                if (!adminResult.success) {
+                    throw new Error(`Admin panel failed: ${adminResult.message}`);
+                }
+
+                showResult('fullTestResult', 
+                    `🎉 Complete integration test PASSED!\n\n✅ Backend connection: Working\n✅ User registration: Working\n✅ User login: Working\n✅ Stats update: Working\n✅ Admin panel: Working\n\nTotal users in system: ${adminResult.count}`, 'success');
+
+            } catch (error) {
+                showResult('fullTestResult', `❌ Integration test FAILED: ${error.message}`, 'error');
+            }
+        }
+
+        // Auto-run backend connection test on page load
+        window.addEventListener('load', testBackendConnection);
+    </script>
+</body>
+</html> 

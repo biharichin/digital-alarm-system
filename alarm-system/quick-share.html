@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Share Alarm System</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            margin: 0;
+            padding: 20px;
+            min-height: 100vh;
+            color: white;
+        }
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            background: rgba(255,255,255,0.1);
+            border-radius: 15px;
+            padding: 30px;
+            backdrop-filter: blur(10px);
+        }
+        h1 {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .method {
+            background: rgba(255,255,255,0.2);
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        .method h3 {
+            margin-top: 0;
+            color: #fff;
+        }
+        .btn {
+            background: #28a745;
+            color: white;
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            cursor: pointer;
+            text-decoration: none;
+            display: inline-block;
+            margin: 10px 5px;
+        }
+        .btn:hover {
+            background: #218838;
+        }
+        .btn-secondary {
+            background: #6c757d;
+        }
+        .btn-secondary:hover {
+            background: #5a6268;
+        }
+        .qr-code {
+            text-align: center;
+            margin: 20px 0;
+        }
+        .qr-code img {
+            max-width: 200px;
+            border-radius: 10px;
+        }
+        .steps {
+            background: rgba(0,0,0,0.2);
+            border-radius: 8px;
+            padding: 15px;
+            margin: 15px 0;
+        }
+        .steps ol {
+            margin: 0;
+            padding-left: 20px;
+        }
+        .steps li {
+            margin-bottom: 8px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>📱 Share Your Alarm System</h1>
+        
+        <div class="method">
+            <h3>🚀 Quick Online Hosting (Recommended)</h3>
+            <p>Host it online so friends can access it from any device!</p>
+            
+            <div class="steps">
+                <ol>
+                    <li>Go to <a href="https://netlify.com" target="_blank" style="color: #fff;">netlify.com</a></li>
+                    <li>Sign up with GitHub (free)</li>
+                    <li>Drag & drop your alarm-system folder</li>
+                    <li>Get a URL like: <code>https://your-alarm.netlify.app</code></li>
+                    <li>Share the URL with friends!</li>
+                </ol>
+            </div>
+            
+            <a href="https://netlify.com" target="_blank" class="btn">Host on Netlify</a>
+            <a href="https://vercel.com" target="_blank" class="btn btn-secondary">Host on Vercel</a>
+        </div>
+
+        <div class="method">
+            <h3>📁 Direct File Sharing</h3>
+            <p>Share the files directly with friends</p>
+            
+            <div class="steps">
+                <ol>
+                    <li>Right-click the alarm-system folder</li>
+                    <li>Create a ZIP file</li>
+                    <li>Share via WhatsApp, Email, or Drive</li>
+                    <li>Friends extract and open index.html</li>
+                </ol>
+            </div>
+            
+            <button class="btn" onclick="showLocalSharing()">Show Local Network Sharing</button>
+        </div>
+
+        <div class="method">
+            <h3>🌐 Local Network Sharing</h3>
+            <p>Share on your local WiFi network</p>
+            
+            <div class="steps">
+                <ol>
+                    <li>Install Python (if not installed)</li>
+                    <li>Open terminal in alarm-system folder</li>
+                    <li>Run: <code>python -m http.server 8000</code></li>
+                    <li>Share your IP address with friends</li>
+                    <li>They visit: <code>http://YOUR_IP:8000</code></li>
+                </ol>
+            </div>
+            
+            <button class="btn" onclick="getLocalIP()">Get My Local IP</button>
+        </div>
+
+        <div class="method">
+            <h3>📱 Mobile Features</h3>
+            <p>Your alarm system works perfectly on mobile:</p>
+            <ul>
+                <li>✅ Responsive design for all screen sizes</li>
+                <li>✅ Touch-friendly buttons and controls</li>
+                <li>✅ Works offline after first load</li>
+                <li>✅ Can be added to home screen (like an app)</li>
+                <li>✅ No installation required</li>
+            </ul>
+        </div>
+
+        <div style="text-align: center; margin-top: 30px;">
+            <a href="index.html" class="btn">← Back to Alarm System</a>
+        </div>
+    </div>
+
+    <script>
+        function showLocalSharing() {
+            alert('To share on local network:\n\n1. Install Python\n2. Open terminal in alarm-system folder\n3. Run: python -m http.server 8000\n4. Share your IP address with friends\n5. They visit: http://YOUR_IP:8000');
+        }
+
+        function getLocalIP() {
+            // Try to get local IP address
+            fetch('https://api.ipify.org?format=json')
+                .then(response => response.json())
+                .then(data => {
+                    alert(`Your public IP: ${data.ip}\n\nFor local sharing, use your local IP address (usually starts with 192.168.x.x or 10.0.x.x)\n\nYou can find it by running 'ipconfig' (Windows) or 'ifconfig' (Mac/Linux)`);
+                })
+                .catch(() => {
+                    alert('To find your local IP:\n\nWindows: Run "ipconfig" in cmd\nMac/Linux: Run "ifconfig" in terminal\n\nLook for IPv4 address (usually 192.168.x.x)');
+                });
+        }
+    </script>
+</body>
+</html> 
