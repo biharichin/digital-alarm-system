@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # Backend files (keep private)
 backend/
 package-lock.json
@@ -68,4 +69,76 @@ jspm_packages/
 .yarn-integrity
 
 # dotenv environment variables file
+=======
+# Backend files (keep private)
+backend/
+package-lock.json
+
+# Admin files (keep private)
+admin.html
+admin.js
+admin-styles.css
+
+# Testing tools (keep private)
+test-login.html
+reset-password.html
+
+# System files
+.DS_Store
+Thumbs.db
+*.log
+node_modules/
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Temporary files
+*.tmp
+*.temp
+.cache/
+
+# Environment files
+.env
+.env.local
+.env.production
+
+# Database files (if any)
+*.db
+*.sqlite
+*.sqlite3
+
+# Log files
+logs/
+*.log
+
+# Runtime data
+pids/
+*.pid
+*.seed
+*.pid.lock
+
+# Coverage directory used by tools like istanbul
+coverage/
+
+# Dependency directories
+node_modules/
+jspm_packages/
+
+# Optional npm cache directory
+.npm
+
+# Optional REPL history
+.node_repl_history
+
+# Output of 'npm pack'
+*.tgz
+
+# Yarn Integrity file
+.yarn-integrity
+
+# dotenv environment variables file
+>>>>>>> bf947e2cac09ec7cff2d7df34e20b630dc4d4196
 .env 
